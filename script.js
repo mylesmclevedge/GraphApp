@@ -1,16 +1,16 @@
-//arrays for the nodes and edges
-var nodes = new Array();
-var edges = new Array();
+var nodes = [];
+var graphs = [];
 var lastNode = null;
-
-//event handler variables
-var moved = false;
-var makingPath = false;
+var statusOpts = {
+		unconnected: "u",
+		connected: "c",
+		selected: "s"
+};
 
 //graphic variables
 var radius = 20;
 var connectedColor = '#52BAFF';   //blue
-var selectedColor = '#F4FA58';	  //yellow	
+var selectedColor = '#F4FA58';	  //yellow
 var unconnectedColor = '#FFFFFF'; //white
 
 //initialize canvas and draw the background
@@ -27,18 +27,14 @@ function redrawAll() {
 	clearAll();
 	drawGrid();
 
-        //loop 
-	for(connection in edges) {
-		edges[connection].drawConnect();
-	}
+        //loop
 	for(node in nodes) {
 		nodes[node].drawNode();
                 nodes[node].drawText();
 	}
 }
 
-
-clearAll = function() {
+function clearAll() {
 	ctx.clearRect (0,0,cvs.width,cvs.height);
 }
 
@@ -49,28 +45,34 @@ function drawGrid() {
 	for(var i = 2*radius, w = cvs.width; i <= w; i += 2*radius) {
 		for(var c  = 2*radius, h = cvs.height; c <= h; c += 2*radius) {
 			ctx.rect(i,c,1,1);
-		}	
+		}
 	}
 
+/*
+function drawNodes(nodes) {}
+
+function drawConnections(graphs)
+*/
 	ctx.stroke();
 	ctx.closePath();
 }
-
 
 ////////////////////
 //NODE DEFINITION///
 ////////////////////
 var Node = function(xPixel,yPixel) {
   	this.xPixel = xPixel;
- 	this.yPixel = yPixel;
-  	this.color = unconnectedColor; //new nodes start white by default
+ 		this.yPixel = yPixel;
+  	this.status = statusOpts.unconnected; //new nodes start white by default
   	this.neighbors = new Array();
   	this.visited = false;
-  	this.distance = [10000,null];   //arbitrary large num
 }
 
 Node.prototype.equalTo = function(someNode) {
-	if(this.xPixel == someNode.xPixel && this.yPixel == someNode.yPixel) return true;
+	if(this.xPixel == someNode.xPixel && this.yPixel == someNode.yPixel) {
+		 return true;
+	}
+
 	else return false;
 }
 
@@ -80,13 +82,14 @@ Node.prototype.addNeighbor = function(someNode) {
 
 Node.prototype.removeNeighbor = function(someNode) {
 	var i = this.neighbors.indexOf(someNode);
-        return i != -1 ? this.neighbors.splice(i,1) : false;        
+        return i != -1 ? this.neighbors.splice(i,1) : false;
 }
 
 Node.prototype.isNeighbor = function(someNode) {
 	return this.neighbors.indexOf(someNode) == -1 ? false : true;
 }
 
+/*
 Node.prototype.drawNode = function() {
 	ctx.beginPath();
      	ctx.arc(this.xPixel, this.yPixel, radius, 0, 2 * Math.PI, false);
@@ -97,38 +100,52 @@ Node.prototype.drawNode = function() {
       	ctx.strokeStyle = '#000000';
 	ctx.stroke();
 	ctx.closePath();
-}
+}*//*
 
 Node.prototype.drawText = function() {
-          ctx.fillStyle = "#111111";
-          ctx.font = "bold 11px Arial";
-          var str = (Math.round(this.distance[0])).toString();
-          ctx.fillText(str, this.xPixel - 5, this.yPixel + 5);
+        ctx.fillStyle = "#111111";
+        ctx.font = "bold 11px Arial";
+				if(this.distance[0] != 10000) {
+        	var str = (Math.round(this.distance[0])).toString();
+        	ctx.fillText(str, this.xPixel - 5, this.yPixel + 5);
+				}
+}
+*/
+////////////////////
+//GRAPH DEFINITION//
+////////////////////
+var Graph = function() {
+		this.nodePairs = [];
 }
 
-//////////////////
-//CONNECTION DEF//
-//////////////////
-var Connection = function(node1,node2) {
-	this.lineDash = [10];
-        this.nodesArr = [node1,node2];
-        this.lineWidth = 1;
-	this.x1 = node1.xPixel;
-	this.x2 = node2.xPixel;
-	this.y1 = node1.yPixel;
-	this.y2 = node2.yPixel;
-	makeNeighbors(node1,node2);
+Graph.prototype.addPair = function(node1, node2) {
+		if(!this.containsPair(node1, node2)){
+			var distance = distFrom(node1.xCoord, node1.yCoord, node2.xCoord, node2.yCoord);
+			this.nodePairs.push({pair: [node1, node2], final: false, dist: distance});
+	  }
 }
 
-Connection.prototype.drawConnect = function() {
-	ctx.beginPath();
-        ctx.lineWidth = this.lineWidth;
-	ctx.setLineDash(this.lineDash);
-        ctx.moveTo(this.x1, this.y1);
-        ctx.lineTo(this.x2,this.y2);
-	ctx.stroke();
-	ctx.closePath();
-} 
+Graph.prototype.containsPair = function(node1, node2) {
+	for(index in this.nodePairs) {
+			var thisNode1 = this.nodePairs[index].pair[0];
+			var thisNode2 = this.nodePairs[index].pair[1];
+
+			if(thisNode1.equals(node1) && thisNode2.equals(node2) ||
+			   thisNode1.equals(node2) && thisNode2.equals(node1)) {
+					return true;
+			}
+	}
+	return false;
+}
+
+Graph.prototype.containsNode = function(node) {
+	for(index in this.nodePairs) {
+			if(this.nodePairs[i].pair[0].equals(node) || this.nodePairs[i].pair[1].equals(node)) {
+					return true;
+			}
+	}
+	return false;
+}
 
 //////////////////
 //EVENT HANDLERS//
@@ -141,13 +158,19 @@ function keyEvent(event) {
 
 function moveNode(i,event,edgesToMove) {
         var coords = canvas.relMouseCoords(event);
-        moved = true;   
+        moved = true;
+        makingPath = false;
+}
+
+function moveNode(i,event,edgesToMove) {
+        var coords = canvas.relMouseCoords(event);
+        moved = true;
         makingPath = false;
         if(lastNode && lastNode.neighbors.length > 0) {
                 lastNode.color = connectedColor;
         }
         else if(lastNode) {
-                lastNode.color = unconnectedColor; 
+                lastNode.color = unconnectedColor;
         }
         lastNode = null;
 
@@ -156,7 +179,7 @@ function moveNode(i,event,edgesToMove) {
 
         for(edge in edgesToMove) {
                 if(edgesToMove[edge][1] == 0) {
-                        edgesToMove[edge][0].x1 = coords.x;
+                	edgesToMove[edge][0].x1 = coords.x;
                         edgesToMove[edge][0].y1 = coords.y;
                 }
                 else {
@@ -164,7 +187,7 @@ function moveNode(i,event,edgesToMove) {
                         edgesToMove[edge][0].y2 = coords.y;
                 }
         }
-                                                                                
+
 redrawAll();
 }
 
@@ -173,10 +196,13 @@ function mouseDown(event) {
         var loop = true;
         var i = 0;
         if(nodes.length > 0) {
+		//loop through all nodes and see if any were clicked
                 while(loop && i < nodes.length) {
 		        var dist = distFrom(coords.x,coords.y,nodes[i].xPixel,nodes[i].yPixel);
-                        if(dist < radius) {
+                        //true if click was in node
+			if(dist < radius) {
                                 var edgesToMove = new Array();
+				//loop through edges and push any that connect to clicked node
                                 for(connect in edges) {
                                         var theIndex = edges[connect].nodesArr.indexOf(nodes[i]);
                                         if(theIndex == 0) {
@@ -186,83 +212,88 @@ function mouseDown(event) {
                                                 edgesToMove.push([edges[connect],1]);
                                         }
                                 }
-
+				//attach mousemove listener to redraw node if dragged
                                 cvs.onmousemove = function(event){moveNode(i,event,edgesToMove);};
-                        loop = false; 
+                        loop = false;
                         }
-                        else i++;  
+                        else i++;
                 }
         }
 }
 
 function mouseUp(event) {
-        if(!moved) {   
-                
+        if(!moved) {
+
         moved = false;
-        cvs.onmousemove = null;         
+        cvs.onmousemove = null;
         	var coords = canvas.relMouseCoords(event);
-            	
+
             	if(nodes.length == 0) {
 		        var newNode = new Node(coords.x,coords.y);
 		        nodes.push(newNode);
-		        redrawAll();	
+		        redrawAll();
 		        return true;
 	        }
-            	
+
 	        else {
 		        //check each existing node to make sure new node doesn't overlap
 		        for(node in nodes) {
 			        var dist = distFrom(coords.x,coords.y,nodes[node].xPixel,nodes[node].yPixel);
-			
+
 			        //if click is inside a node, fill the node
 			        if(dist < radius) {
-				        if(makingPath && !nodes[node].isNeighbor(lastNode) && !nodes[node].equalTo(lastNode)) {
-					        var newConnect = new Connection(lastNode,nodes[node]);            				
+					//connects two nodes if one is currently selected && they arent already neighbors &&
+				        //click isnt inside lastNode
+					if(makingPath && !nodes[node].isNeighbor(lastNode) && !nodes[node].equalTo(lastNode)) {
+					        var newConnect = new Connection(lastNode,nodes[node]);
 					        edges.push(newConnect);
 				        }
-				        else {			
+					//otherwise we are making path
+				        else {
 					        makingPath = true;
 				        }
-				
+
+					//change color of last node if it was selected
+					//TODO store status of each node in node maybe instead of color
 				        if(lastNode) {
 					        lastNode.color = connectedColor;
 				        }
-				
+
+					//selected node clicked on
 				        if(lastNode && nodes[node].equalTo(lastNode)) {
 					        lastNode = null;
 					        makingPath = false;
-					        if(nodes[node].neighbors.length == 0) {					
+					        if(nodes[node].neighbors.length == 0) {
 						        nodes[node].color = unconnectedColor;
 					        }
-					        else nodes[node].color = connectedColor;
-					        redrawAll();						
+					        redrawAll();
 					        return 0;
 				        }
 				        else {
 					        lastNode = nodes[node];
 					        nodes[node].color = selectedColor;
-					        redrawAll();	
-		          			return 0; 
+					        redrawAll();
+		          			return 0;
 		          		}
 		          	}
-		          	
-		          	//if new node would overlap	
+
+		          	//if new node would overlap
 		          	else if(dist > radius && dist < 2 * radius) {
 		          		makingPath = false;
-		          		if(lastNode != null) {
+		          		if(lastNode) {
 		          			lastNode.color = connectedColor;
 		          		}
 		          		lastNode = null;
-				        redrawAll();	
+				        redrawAll();
 		          		return 0;
 		          	}
 		        }
-		
+
 		        if(!makingPath) {
 			        var newNode = new Node(coords.x,coords.y);
 			        nodes.push(newNode);
 			        newNode.color = unconnectedColor;
-			        redrawAll();	
+			        redrawAll();
 			        return 1;
 		        }
 		        else {
@@ -272,7 +303,7 @@ function mouseUp(event) {
 		          	}
 			        lastNode = null;
 			        redrawAll();
-			        return 0;	
+			        return 0;
 		        }
 	        }
         }
@@ -291,7 +322,7 @@ makeNeighbors = function(node1,node2) {
 
 distFrom = function(x1,y1,x2,y2) {
 	return Math.sqrt(Math.pow(x1-x2,2) + Math.pow(y1-y2,2));
-}	
+}
 
 //capture event coordinates within canvas
 function relMouseCoords(event){
@@ -305,7 +336,7 @@ function relMouseCoords(event){
         	totalOffsetX += currentElement.offsetLeft;
         	totalOffsetY += currentElement.offsetTop;
     	}
-    	
+
     	while(currentElement = currentElement.offsetParent)
 
     	canvasX = event.pageX - totalOffsetX;
@@ -315,13 +346,16 @@ function relMouseCoords(event){
 HTMLCanvasElement.prototype.relMouseCoords = relMouseCoords;
 
 //TODO
-function reset() {
-        //reset all nodes after algorithm
-}
+//function reset() {
+        //for(node in nodes) {
+
+	//}
+//}
 
 //////////////
 //ALGORITHMS//
 //////////////
+/*
 function dijkstra(aNode) {
         var finalVertices = new Array();
         var finaledgesToMove = new Array();
@@ -331,44 +365,54 @@ function dijkstra(aNode) {
         sourceNode.distance = [0,null];
         finalVertices.push(sourceNode);
         while(!done) {
-                
+
                 var minNode = null;
+		//cycle trough current node's neighbors
                 for(node in sourceNode.neighbors) {
+			//if neighbor node has already been finalized
                         if(finalVertices.indexOf(sourceNode.neighbors[node]) != -1) {
-                                continue;        
-                        }                
+                                continue;
+                        }
+
 
                         tmpDist = sourceNode.distance[0] + distFrom(sourceNode.xPixel,sourceNode.yPixel,
                                                                 sourceNode.neighbors[node].xPixel,sourceNode.neighbors[node].yPixel);
-                        
+
+			//if ditance to neighbor is shorter than its current shortest distance, replace it
                         if(tmpDist < sourceNode.neighbors[node].distance[0]) {
                                 sourceNode.neighbors[node].distance = [tmpDist,sourceNode];
                         }
 
-                        if(minNode) {            
+			//executes if this is not first neighbor checked
+                        if(minNode) {
                                 if(tmpDist < minNode.distance[0]) {
                                         minNode = sourceNode.neighbors[node];
                                 }
-                        } 
-
+                        }
+			//if this is first neighbor checked, mark it minimum node(shortest distance)
                         else {
                                 minNode = sourceNode.neighbors[node];
                         }
                 }
+
+		//
                 if(minNode) {
+			//cycle through all edges and find the one that connects minimum node with source node
                         for(connect in edges) {
                                 index1 = edges[connect].nodesArr.indexOf(minNode);
                                 index2 = edges[connect].nodesArr.indexOf(minNode.distance[1]);
                                 if(index1 != -1 && index2 != -1) {
-                                        edges[connect].lineDash = [];
+                                        edges[connect].lineDash = []; //make these a "status" attribute
                                         edges[connect].lineWidth = 2;
                                 }
                         }
                 }
-                
+
+								//if all nodes have been finalized
                 if(finalVertices.length >= nodes.length) {
                         done = true;
                 }
+
                 if(minNode) {
                         finalVertices.push(minNode);
                         for(node in minNode.neighbors) {
@@ -377,7 +421,7 @@ function dijkstra(aNode) {
                                 if(tmpDist < minNode.neighbors[node].distance[0]) {
                                         minNode.neighbors[node].distance = [tmpDist,minNode];
                                 }
-                        }             
+                        }
                         minNode.color = "#FFFFFF";
                         minNode = null;
                 }
@@ -395,7 +439,7 @@ function dijkstra(aNode) {
 
                 }
 
-                
+
                 if(minNode) {
                         finalVertices.push(minNode);
                         minNode.color = "#FFFFFF";
@@ -416,5 +460,4 @@ function dijkstra(aNode) {
                 }
                 redrawAll();
         }
-}
-
+} */
