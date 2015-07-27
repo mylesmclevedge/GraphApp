@@ -1,0 +1,19 @@
+body {
+  margin: 0;
+}
+#header {
+  margin: 0;
+  padding: 10px 30px;
+}
+
+#container {
+  width: 100%;
+}
+
+canvas {
+  display: inline-block;
+}
+
+textarea {
+  display: inline-block;
+}
