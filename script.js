@@ -5,7 +5,7 @@ var selected = null;
 var dragged = false;
 var statusOpts = {
 		unselected: '#52BAFF',
-		selected: '#003366'
+		selected: '#0033FF'
 };
 
 //graphic variables
@@ -238,7 +238,6 @@ function mouseUp(event) {
                   selected.status = statusOpts.unselected;
                 }
                 selected = nodes[node];
-								console.log(selected);
                 selected.status = statusOpts.selected;
 								overlap = true;
 		          }
@@ -264,7 +263,6 @@ function mouseUp(event) {
 				}
         dragged = false;
         cvs.onmousemove = null;
-				console.log(selected);
         redrawAll();
 }
 
@@ -311,7 +309,7 @@ HTMLCanvasElement.prototype.relMouseCoords = relMouseCoords;
 //////////////
 //ALGORITHMS//
 //////////////
-/*
+
 function dijkstra(aNode) {
         var finalVertices = new Array();
         var finaledgesToMove = new Array();
@@ -416,4 +414,4 @@ function dijkstra(aNode) {
                 }
                 redrawAll();
         }
-} */
+}
